@@ -3,18 +3,18 @@ const fs = require('fs');
 const { promisify } = require('util');
 
 // Constants
-const DIFFICULTY_TARGET = '0000ffff00000000000000000000000000000000000000000000000000000000';
-const MEMPOOL_FOLDER = './mempool';
-const OUTPUT_FILE = './output.txt';
+const difficulty = '0000ffff00000000000000000000000000000000000000000000000000000000';
+const mempool = './mempool';
+const output_loc = './output.txt';
 
 // Function to read JSON files from mempool folder
 const readMempoolFiles = async () => {
     const readdir = promisify(fs.readdir);
-    const files = await readdir(MEMPOOL_FOLDER);
+    const files = await readdir(mempool);
     const transactions = [];
 
     for (const file of files) {
-        const data = require(`${MEMPOOL_FOLDER}/${file}`);
+        const data = require(`${mempool}/${file}`);
         transactions.push(data);
     }
 
@@ -23,18 +23,14 @@ const readMempoolFiles = async () => {
 
 // Function to validate a single transaction
 const validateTransaction = (transaction) => {
-    if (!transaction ) {
+    if (transaction.vin.value != transaction.vout.value ) {
         return false;
     }
-
-    // Additional validation logic can be implemented here
-    // For example, checking transaction signatures, values, etc.
-
     return true; // Transaction is considered valid for now
 };
 
 // Function to calculate the hash of a block header
-const calculateBlockHash = (blockHeader) => {
+const calcBlockHash = (blockHeader) => {
     return crypto.createHash('sha256').update(JSON.stringify(blockHeader)).digest('hex');
 };
 
@@ -43,9 +39,9 @@ const mineBlock = async (transactions) => {
     console.log('Mining block...');
     let nonce = 0;
     let blockHash = '';
-    while (!blockHash.startsWith(DIFFICULTY_TARGET)) {
+    while (!blockHash.startsWith(difficulty)) {
         const blockHeader = { nonce, transactions };
-        blockHash = calculateBlockHash(blockHeader);
+        blockHash = calcBlockHash(blockHeader);
         console.log(`Nonce: ${nonce}, Block Hash: ${blockHash}`);
         nonce++;
     }
@@ -78,7 +74,7 @@ const main = async () => {
         const serializedTransactions = validTransactions.map(tx => tx.txid).join('\n');
         const output = `${outputData}Serialized Coinbase Transaction: ${serializedTransactions}`;
         
-        fs.writeFileSync(OUTPUT_FILE, output);
+        fs.writeFileSync(output_loc, output);
         console.log('Mining completed. Output written to output.txt');
     } catch (error) {
         console.error('Error:', error);
