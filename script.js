@@ -68,7 +68,10 @@ const outputFile = 'output.txt';
 fs.writeFileSync(outputFile, `Block Header: ${getBlockHeaderString(blockHeader)}\n`);
 fs.appendFileSync(outputFile, `Serialized Coinbase Transaction: ${getTransactionString(coinbaseTransaction)}\n`);
 validTransactions.forEach(transaction => {
-  fs.appendFileSync(outputFile, `Transaction ID: ${JSON.stringify(transaction.vin[0].txid)}\n`); // Assuming txid is within the first input
+  transaction.vin.forEach(input => {
+    const txid = input.txid;
+    fs.appendFileSync(outputFile, `Transaction ID: ${txid}\n`);
+  });
 });
 
 // Helper functions
@@ -115,12 +118,7 @@ function getBlockHash(blockHeader) {
 }
 
 function getBlockHeaderString(blockHeader) {
-  return `Version : ${blockHeader.version} , 
-  Previous BlockHash :${blockHeader.prevBlockHash},
-  MerkleRoot : ${blockHeader.merkleRoot} ,
-  TimeStamp : ${blockHeader.timestamp} ,
-  Bits : ${blockHeader.bits} ,
-  Nonce : ${blockHeader.nonce}`;
+  return `Version : ${blockHeader.version} , Previous BlockHash :${blockHeader.prevBlockHash}, MerkleRoot : ${blockHeader.merkleRoot} , TimeStamp : ${blockHeader.timestamp} , Bits : ${blockHeader.bits} , Nonce : ${blockHeader.nonce}`;
 }
 
 function getTransactionString(transaction) {
