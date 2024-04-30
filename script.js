@@ -115,14 +115,13 @@ function getBlockHash(blockHeader) {
 }
 
 function getBlockHeaderString(blockHeader) {
-  return `Version : ${blockHeader.version} , 
-  Previous BlockHash :${blockHeader.prevBlockHash},
-  MerkleRoot : ${blockHeader.merkleRoot} ,
-  TimeStamp : ${blockHeader.timestamp} ,
-  Bits : ${blockHeader.bits} ,
-  Nonce : ${blockHeader.nonce}`;
+  return `Version: ${blockHeader.version.toString(16).padStart(8, '0')}, 
+  Previous BlockHash: ${blockHeader.prevBlockHash},
+  MerkleRoot: ${blockHeader.merkleRoot},
+  TimeStamp: ${blockHeader.timestamp.toString(16).padStart(8, '0')},
+  Bits: ${blockHeader.bits.toString(16).padStart(8, '0')},
+  Nonce: ${blockHeader.nonce.toString(16).padStart(8, '0')}`;
 }
-
 function getTransactionString(transaction) {
   return JSON.stringify(transaction);
 }
