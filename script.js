@@ -1,85 +1,116 @@
-const crypto = require('crypto');
 const fs = require('fs');
-const { promisify } = require('util');
+const crypto = require('crypto');
+const bitcoin = require('bitcoinjs-lib');
 
-// Constants
-const difficulty = '0000ffff00000000000000000000000000000000000000000000000000000000';
-const mempool = './mempool';
-const output_loc = './output.txt';
+// Load transactions from mempool
+const mempoolDir = './mempool';
+const transactions = [];
+fs.readdirSync(mempoolDir).forEach(file => {
+  const filePath = `${mempoolDir}/${file}`;
+  const transaction = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  transactions.push(transaction);
+});
 
-// Function to read JSON files from mempool folder
-const readMempoolFiles = async () => {
-    const readdir = promisify(fs.readdir);
-    const files = await readdir(mempool);
-    const transactions = [];
+// Validate transactions
+const validTransactions = [];
+transactions.forEach(transaction => {
+  if (validateTransaction(transaction)) {
+    validTransactions.push(transaction);
+  }
+});
 
-    for (const file of files) {
-        const data = require(`${mempool}/${file}`);
-        transactions.push(data);
+// Calculate total transaction fees
+let totalFees = 0;
+validTransactions.forEach(transaction => {
+  transaction.vin.forEach(input => {
+    totalFees += input.prevout.value;
+  });
+  transaction.vout.forEach(output => {
+    totalFees -= output.value;
+  });
+});
+
+// Create coinbase transaction
+const coinbaseTransaction = {
+  version: 1,
+  locktime: 0,
+  vin: [],
+  vout: [
+    {
+      scriptpubkey: '76a9146085312a9c500ff9cc35b571b0a1e5efb7fb9f1688ac',
+      scriptpubkey_asm: 'OP_DUP OP_HASH160 OP_PUSHBYTES_20 6085312a9c500ff9cc35b571b0a1e5efb7fb9f16 OP_EQUALVERIFY OP_CHECKSIG',
+      scriptpubkey_type: 'p2pkh',
+      scriptpubkey_address: '19oMRmCWMYuhnP5W61ABrjjxHc6RphZh11',
+      value: 2500000 + totalFees // 25 BTC reward + total transaction fees
     }
-
-    return transactions;
+  ]
 };
 
-// Function to validate a single transaction
-const validateTransaction = (transaction) => {
-    if (transaction.vin.value != transaction.vout.value ) {
-        return false;
-    }
-    return true; // Transaction is considered valid for now
+// Validate transactions using bitcoinjs-lib
+function validateTransaction(transaction) {
+  try {
+    bitcoin.Transaction.fromHex(transaction); // This line throws an error if the transaction is invalid
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Continue with the rest of your code...
+// Mine block
+const blockHeader = {
+  version: 1,
+  prevBlockHash: '0000000000000000000000000000000000000000000000000000000000000000',
+  merkleRoot: getMerkleRoot(validTransactions.concat([coinbaseTransaction])),
+  timestamp: Math.floor(Date.now() / 1000),
+  bits: 0x1903a30c, // difficulty target
+  nonce: 0
 };
 
-// Function to calculate the hash of a block header
-const calcBlockHash = (blockHeader) => {
-    return crypto.createHash('sha256').update(JSON.stringify(blockHeader)).digest('hex');
-};
+let blockHash;
+do {
+  blockHash = getBlockHash(blockHeader);
+  blockHeader.nonce++;
+} while (blockHash > '0000ffff00000000000000000000000000000000000000000000000000000000');
 
-// Function to mine a block
-const mineBlock = async (transactions) => {
-    console.log('Mining block...');
-    let nonce = 0;
-    let blockHash = '';
-    while (!blockHash.startsWith(difficulty)) {
-        const blockHeader = { nonce, transactions };
-        blockHash = calcBlockHash(blockHeader);
-        console.log(`Nonce: ${nonce}, Block Hash: ${blockHash}`);
-        nonce++;
-    }
-    console.log('Block mined successfully.');
-    return { nonce, blockHash };
-};
+// Write output to file
+const outputFile = 'output.txt';
+fs.writeFileSync(outputFile, `Block Header: ${getBlockHeaderString(blockHeader)}\n`);
+fs.appendFileSync(outputFile, `Serialized Coinbase Transaction: ${getTransactionString(coinbaseTransaction)}\n`);
+validTransactions.forEach(transaction => {
+  transaction.vin.forEach(input => {
+    const txid = input.txid;
+    fs.appendFileSync(outputFile, `Transaction ID: ${txid}\n`);
+  });
+});
 
-// Main function to execute transaction validation and block mining
-const main = async () => {
-    try {
-        // Read transactions from mempool folder
-        console.log('Reading mempool files...');
-        const transactions = await readMempoolFiles();
-        console.log('Mempool files read:', transactions);
+// Helper functions
+function getMerkleRoot(transactions) {
+  const hashes = transactions.map(transaction => {
+    const txHash = crypto.createHash('sha256');
+    txHash.update(JSON.stringify(transaction));
+    return txHash.digest('hex');
+  });
+  const merkleRoot = crypto.createHash('sha256');
+  merkleRoot.update(hashes.reduce((a, b) => a + b, ''));
+  return merkleRoot.digest('hex');
+}
 
-        // Validate each transaction
-        console.log('Validating transactions...');
-        const validTransactions = transactions.filter((transaction, index) => {
-            const isValid = validateTransaction(transaction);
-            console.log(`Transaction ${index + 1}: ${isValid ? 'Valid' : 'Invalid'}`);
-            return isValid;
-        });
-        console.log('Valid transactions:', validTransactions);
+function getBlockHash(blockHeader) {
+  const blockHash = crypto.createHash('sha256');
+  blockHash.update(JSON.stringify(blockHeader));
+  return blockHash.digest('hex');
+}
 
-        // Mine the block
-        const { nonce, blockHash } = await mineBlock(validTransactions);
+function getBlockHeaderString(blockHeader) {
+  return `Version : ${blockHeader.version} , 
+  Previous BlockHash :${blockHeader.prevBlockHash},
+  MerkleRoot : ${blockHeader.merkleRoot} ,
+  TimeStamp : ${blockHeader.timestamp} ,
+  Bits : ${blockHeader.bits} ,
+  Nonce : ${blockHeader.nonce}`;
+}
 
-        // Write block header and transactions to output file
-        const outputData = `Block Header: Nonce - ${nonce}, Hash - ${blockHash}\n`;
-        const serializedTransactions = validTransactions.map(tx => tx.txid).join('\n');
-        const output = `${outputData}Serialized Coinbase Transaction: ${serializedTransactions}`;
-        
-        fs.writeFileSync(output_loc, output);
-        console.log('Mining completed. Output written to output.txt');
-    } catch (error) {
-        console.error('Error:', error);
-    }
-};
-
-// Execute main function
-main();
+function getTransactionString(transaction) {
+  return JSON.stringify(transaction);
+}
