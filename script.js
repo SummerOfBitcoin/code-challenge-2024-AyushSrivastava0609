@@ -114,12 +114,12 @@ function getBlockHash(blockHeader) {
   return blockHash.digest('hex');
 }
 function getBlockHeaderString(blockHeader) {
-  return `Version: ${blockHeader.version.toString(16).padStart(8, '0')}, 
-  Previous BlockHash: ${blockHeader.prevBlockHash.padStart(64, '0')},
-  MerkleRoot: ${blockHeader.merkleRoot.padStart(64, '0')},
-  TimeStamp: ${blockHeader.timestamp.toString(16).padStart(8, '0')},
-  Bits: ${blockHeader.bits.toString(16).padStart(8, '0')},
-  Nonce: ${blockHeader.nonce.toString(16).padStart(8, '0')}`;
+  return `Version : ${blockHeader.version} , 
+  Previous BlockHash :${blockHeader.prevBlockHash},
+  MerkleRoot : ${blockHeader.merkleRoot} ,
+  TimeStamp : ${blockHeader.timestamp} ,
+  Bits : ${blockHeader.bits} ,
+  Nonce : ${blockHeader.nonce}`;
 }
 
 function getTransactionString(transaction) {
