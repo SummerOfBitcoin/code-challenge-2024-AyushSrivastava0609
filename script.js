@@ -113,15 +113,15 @@ function getBlockHash(blockHeader) {
   blockHash.update(JSON.stringify(blockHeader));
   return blockHash.digest('hex');
 }
-
 function getBlockHeaderString(blockHeader) {
   return `Version: ${blockHeader.version.toString(16).padStart(8, '0')}, 
-  Previous BlockHash: ${blockHeader.prevBlockHash},
-  MerkleRoot: ${blockHeader.merkleRoot},
+  Previous BlockHash: ${blockHeader.prevBlockHash.padStart(64, '0')},
+  MerkleRoot: ${blockHeader.merkleRoot.padStart(64, '0')},
   TimeStamp: ${blockHeader.timestamp.toString(16).padStart(8, '0')},
   Bits: ${blockHeader.bits.toString(16).padStart(8, '0')},
   Nonce: ${blockHeader.nonce.toString(16).padStart(8, '0')}`;
 }
+
 function getTransactionString(transaction) {
   return JSON.stringify(transaction);
 }
