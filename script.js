@@ -1,6 +1,6 @@
 const fs = require('fs');
 const crypto = require('crypto');
-const bitcoin = require('bitcoinjs-lib');
+const secp256k1 = require('secp256k1');
 
 // Load transactions from mempool
 const mempoolDir = './mempool';
@@ -14,6 +14,7 @@ fs.readdirSync(mempoolDir).forEach(file => {
 // Validate transactions
 const validTransactions = [];
 transactions.forEach(transaction => {
+  // Check if transaction is valid (e.g. correct format, valid signatures, etc.)
   if (validateTransaction(transaction)) {
     validTransactions.push(transaction);
   }
@@ -46,17 +47,6 @@ const coinbaseTransaction = {
   ]
 };
 
-// Validate transactions using bitcoinjs-lib
-function validateTransaction(transaction) {
-  try {
-    bitcoin.Transaction.fromHex(transaction); // This line throws an error if the transaction is invalid
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-// Continue with the rest of your code...
 // Mine block
 const blockHeader = {
   version: 1,
@@ -78,13 +68,35 @@ const outputFile = 'output.txt';
 fs.writeFileSync(outputFile, `Block Header: ${getBlockHeaderString(blockHeader)}\n`);
 fs.appendFileSync(outputFile, `Serialized Coinbase Transaction: ${getTransactionString(coinbaseTransaction)}\n`);
 validTransactions.forEach(transaction => {
-  transaction.vin.forEach(input => {
-    const txid = input.txid;
-    fs.appendFileSync(outputFile, `Transaction ID: ${txid}\n`);
-  });
+  fs.appendFileSync(outputFile, `Transaction ID: ${JSON.stringify(transaction.vin[0].txid)}\n`); // Assuming txid is within the first input
 });
 
 // Helper functions
+function validateTransaction(transaction) {
+  // Check if transaction has valid vin and vout
+  if (!transaction.vin || transaction.vin.length === 0 || !transaction.vout || transaction.vout.length === 0) {
+    return false;
+  }
+
+  // Check if transaction has valid signatures
+  transaction.vin.forEach(input => {
+    const scriptSig = input.scriptSig;
+    const scriptPubKey = input.prevout.scriptPubKey;
+    if (!input.prevout.txid) {
+      return false;
+    }
+    const messageHash = crypto.createHash('sha256');
+    messageHash.update(input.prevout.txid);
+    const publicKey = secp256k1.publicKeyCreate(input.prevout.scriptPubKey);
+    const isValid = secp256k1.verify(messageHash.digest(), scriptSig, publicKey);
+    if (!isValid) {
+      return false;
+    }
+  });
+
+  return true;
+}
+
 function getMerkleRoot(transactions) {
   const hashes = transactions.map(transaction => {
     const txHash = crypto.createHash('sha256');
