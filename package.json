@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "bitcoinjs-lib": "^6.1.5",
+    "crypto": "^1.0.1",
+    "fs": "^0.0.1-security",
+    "secp256k1": "^5.0.0",
+    "util": "^0.12.5"
+  }
+}
